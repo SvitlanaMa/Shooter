@@ -30,6 +30,7 @@ class Pers(GameSprite):
     def __init__(self, x, y, w, h, image, speed):
         super().__init__(x, y, w, h, image)
         self.speed = speed
+        self.clip = 5
 
     def move(self, key_left, key_right):
         k = pygame.key.get_pressed()
@@ -41,8 +42,13 @@ class Pers(GameSprite):
                 self.rect.x -= self.speed
 
     def shoot(self):
+        if self.clip > 0:
         # fire_snd.play()
-        b = Bullet(self.rect.centerx-7, self.rect.y, 15, 20, bullet_img, 4)
+            b = Bullet(self.rect.centerx-7, self.rect.y, 15, 20, bullet_img, 4)
+            self.clip -= 1
+    def reload(self):
+        if self.clip <= 0:
+            self.clip = 5
 
 class Enemy(GameSprite):
     def __init__(self, x, y, w, h, image, speed):
@@ -77,6 +83,8 @@ class Bullet(GameSprite):
 font1 = pygame.font.SysFont("Arial", 20)
 font2 = pygame.font.SysFont("Arial", 50)
 
+reload_alert = font1.render("Щоб перезарядитись, натисни E", True, (255, 0, 0))
+
 window = pygame.display.set_mode((win_w, win_h))
 pygame.display.set_caption("Shooter 0.1")
 clock = pygame.time.Clock()
@@ -95,6 +103,16 @@ for i in range(5):
     enemy = Enemy(randint(0, win_w-50), randint(-500, 0), 70, 40, enemy_img, randint(1, 3))
     enemies.append(enemy)
 
+# record
+with open("record.txt", "r", encoding="UTF-8") as file:
+    record = int(file.read())
+
+print(record)
+def new_record(old, new):
+    if new > old:
+        with open("record.txt", "w", encoding="UTF-8") as file:
+            file.write(str(new))        
+
 score = 0
 lost = 0
 game = True
@@ -109,11 +127,12 @@ while game:
             enemy.move()
             if rocket.rect.colliderect(enemy.rect):
                 finish = True
+                new_record(record, score)
                 game_over = font2.render("Game Over", True, (255, 0, 0))
             for bullet in bullets:
                 if bullet.rect.colliderect(enemy.rect):
                     score += 1
-                    print(score)
+                    # print(score)
                     enemy.rect.x, enemy.rect.y = randint(0, win_w-50), randint(-500, 0)
                     bullets.remove(bullet)
 
@@ -123,6 +142,7 @@ while game:
         if lost >= 3:
             finish = True
             game_over = font2.render("Game Over", True, (255, 0, 0))
+            new_record(record, score)
     else:
         window.blit(game_over, (200,200))
 
@@ -138,9 +158,15 @@ while game:
                 enemy.rect.x, enemy.rect.y = randint(0, win_w-50), randint(-500, 0)
         if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE and not finish:
             rocket.shoot()
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_e and not finish:
+            rocket.reload()
     propusk = font1.render("Пропущено: "+str(lost), True, (255, 255, 255))
     window.blit(propusk, (10,10))
     killed = font1.render("Вбито: "+str(score), True, (255, 255, 255))
     window.blit(killed, (10,30))
+    clip_stat = font1.render("Зарядів: "+str(rocket.clip), True, (255, 255, 255))
+    window.blit(clip_stat, (350,10))
+    if rocket.clip <= 0:
+        window.blit(reload_alert, (300,30))
     pygame.display.update()
     clock.tick(FPS)
